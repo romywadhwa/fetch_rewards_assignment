@@ -1,0 +1,206 @@
+# creating users table
+
+
+CREATE TABLE users (
+  _id1 VARCHAR(50) ,
+  active boolean,
+  createdDate timestamp,
+  lastLogin timestamp,
+  role VARCHAR(25),
+  signUpSource varchar(25),
+  state varchar(10)	
+)
+
+
+COPY users(_id1,active,createdDate,lastLogin,role,signUpSource,state)
+FROM 'D:\internships\fetch\users.csv'
+DELIMITER ','
+CSV HEADER;
+
+
+Creating brands table
+
+CREATE TABLE brands  (
+  _id1 VARCHAR(100) ,
+  barcode varchar(100),
+  category varchar(100),
+  categoryCode varchar(100),
+  cogs varchar(100),
+  name varchar(100),
+  topBrand boolean,
+  brandCode varchar(100)
+)
+
+
+
+COPY brands(_id1,barcode,category,categoryCode,cogs,name,topBrand,brandCode)
+FROM 'D:\internships\fetch\brands.csv'
+DELIMITER ','
+CSV HEADER;
+
+
+creating receipt_1 table
+
+
+CREATE TABLE receipts_1  (
+  _id1 VARCHAR(100) ,
+  dateScanned timestamp,
+  barcode varchar(100),
+  brandCode varchar(100),
+  totalSpent float,
+  purchasedItemCount float,
+  userId varchar(25)
+)
+
+COPY receipts_1(_id1,dateScanned,barcode,brandCode,totalSpent,purchasedItemCount,userId)
+FROM 'D:\internships\fetch\receipts_1.csv'
+DELIMITER ','
+CSV HEADER;
+
+creating receipt_2 table
+
+CREATE TABLE receipts_2  (
+  _id VARCHAR(100) ,
+  rewardsReceiptStatus varchar(25),
+  totalSpent float,
+  purchasedItemCount float,
+  userId varchar(25)
+)
+
+COPY receipts_2(_id,rewardsReceiptStatus,totalSpent,purchasedItemCount,userId)
+FROM 'D:\internships\fetch\receipts_2.csv'
+DELIMITER ','
+CSV HEADER;
+
+
+
+Answer 1) and 2)
+
+with cte1 as(
+select to_date(to_char(datescanned, 'mm/yyyy'), 'mm/yyyy') as y,brandCode, count(brandCode) as cnt
+from receipts_1
+where brandCode is not null
+group by 1,2
+),
+cte2 as(
+select y,brandcode,cnt,
+dense_rank() over(partition by y order by y desc,cnt desc) as r1
+from cte1 
+)
+select * from cte2
+where r1 <= 5
+
+Answers
+
+"2021-02-01"  "BRAND" 3 1
+"2021-02-01"  "MISSION" 2 2
+"2021-01-01"  "BRAND" 19  1
+"2021-01-01"  "BEN AND JERRYS"  8 2
+"2021-01-01"  "HY-VEE"  8 2
+"2021-01-01"  "WINGSTOP"  7 3
+"2021-01-01"  "MISSION" 5 4
+"2021-01-01"  "BORDEN"  5 4
+"2021-01-01"  "BETTY CROCKER" 4 5
+"2021-01-01"  "PEPSI" 4 5
+
+
+
+
+
+question 3)
+
+with cte as (
+select rewardsreceiptstatus,coalesce(sum(totalspent),0) as s from receipts_2
+group by rewardsreceiptstatus
+  )
+select * ,
+dense_rank() over(order by s desc) as r1
+from cte
+order by r1
+
+Answers
+
+"FINISHED"  41882.53  1
+"FLAGGED" 8300.78 2
+"REJECTED"  1656.150000000001 3
+"PENDING" 1373.5900000000001  4
+"SUBMITTED" 0 5
+
+
+quesn 4)
+
+with cte as (
+select rewardsreceiptstatus,coalesce(sum(purchasedItemCount),0) as item_cnt from receipts_2
+group by rewardsreceiptstatus
+  )
+select * ,
+dense_rank() over(order by item_cnt desc) as r1
+from cte
+order by r1
+
+
+question 5)
+
+with cte1 as (
+select *,to_date(to_char(createddate, 'mm/yyyy'), 'mm/yyyy') as y
+from users
+),
+cte2 as(
+select *,
+dense_rank() over(order by y desc) as r1
+from cte1
+order by r1
+  ),
+cte3 as (
+select brandcode, sum(totalSpent) as s ,
+dense_rank() over(order by sum(totalSpent) desc) as r2 from cte2
+inner join receipts_1 on cte2._id1=receipts_1.userId
+where r1<=6 and brandcode is not null
+group by brandcode
+order by sum(totalSpent) desc
+)
+select * from cte3
+where r2 <=5
+order by r2 
+
+Answers
+
+"HY-VEE"  2586  1
+"BETTY CROCKER" 1875  2
+"PEPSI" 1028  3
+"DORITOS" 309 4
+"BEN AND JERRYS"  254 5
+
+
+
+question 6 
+
+with cte1 as (
+select *,to_date(to_char(createddate, 'mm/yyyy'), 'mm/yyyy') as y
+from users
+),
+cte2 as(
+select *,
+dense_rank() over(order by y desc) as r1
+from cte1
+order by r1
+  ),
+cte3 as (
+select brandcode, count(*) as cnt ,
+dense_rank() over(order by count(*) desc) as r2 from cte2
+inner join receipts_1 on cte2._id1=receipts_1.userId
+where r1<=6 and brandcode is not null
+group by brandcode
+order by count(*) desc
+)
+select * from cte3
+where r2 <=5
+order by r2 
+
+Answers
+
+"BRAND" 61  1
+"MISSION" 31  2
+"HY-VEE"  23  3
+"ORAL-B GLIDE"  6 4
+"BEN AND JERRYS"  5 5
